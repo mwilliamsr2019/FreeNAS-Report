@@ -107,6 +107,7 @@ scrubAgeWarn="30"		# Maximum age (in days) of last pool scrub before CRITICAL co
 ### SMART status summary table settings
 includeSSD="true"		# Change to "true" to include SSDs in SMART status summary table; "false" to disable
 includeSAS="false"		# Change to "true" to include SAS drives in SMART status summary table; "false" to disable
+includeHDD="false"		# Change to "true" to include HDD drives in SMART status summary table; "false" to disable
 lifeRemainWarn="75"		# Life remaining in the SSD at which WARNING color will be used
 lifeRemainCrit="50"		# Life remaining in the SSD at which CRITICAL color will be used
 totalBWWarn="100"		# Total bytes written (in TB) to the SSD at which WARNING color will be used
@@ -2541,15 +2542,17 @@ if [ "${includeSSD}" = "true" ]; then
 	fi
 fi
 # Test to see if there are any HDDs
-for drive in "${drives[@]}"; do
-	driveTypeExistSmartOutput="$(smartctl -ij "/dev/${drive}")"
-	if [ ! "$(jq -Mre '.rotation_rate | values' <<< "${driveTypeExistSmartOutput}")" = "0" ] && [ "$(jq -Mre '.device.protocol | values' <<< "${driveTypeExistSmartOutput}")" = "ATA" ]; then
-		hddExist="true"
-		break
-	else
-		hddExist="false"
-	fi
-done
+if [ "${includeHDD}" = "true" ]; then
+	for drive in "${drives[@]}"; do
+		driveTypeExistSmartOutput="$(smartctl -ij "/dev/${drive}")"
+		if [ ! "$(echo "${driveTypeExistSmartOutput}" | jq -Mre '.rotation_rate | values')" = "0" ] && [ ! "$(echo "${driveTypeExistSmartOutput}" | jq -Mre '.device.type | values')" = "scsi" ]; then
+			hddExist="true"
+			break
+		else
+			hddExist="false"
+		fi
+	done
+fi
 # Test to see if there are any SAS drives
 if [ "${includeSAS}" = "true" ]; then
 	for drive in "${drives[@]}"; do
